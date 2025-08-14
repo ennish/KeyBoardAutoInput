@@ -1,0 +1,193 @@
+package com.ennio;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.event.InputEvent;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+
+public class KeyboardSimulator extends JFrame {
+
+    private final JTextArea textArea;
+    private final JButton startButton;
+    private final JButton clearButton;
+    private final JLabel statusLabel;
+    private final JProgressBar progressBar;
+    private boolean isRunning = false;
+
+    public KeyboardSimulator() {
+        // 设置窗口属性
+        setTitle("键盘模拟输入工具");
+        setSize(600, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+        setLocationRelativeTo(null);
+
+        // 创建组件
+        textArea = new JTextArea(10, 40);
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
+        startButton = new JButton("开始模拟 (Ctrl+Enter)");
+        clearButton = new JButton("清空内容");
+        statusLabel = new JLabel("就绪 - 输入文本后点击开始按钮");
+        progressBar = new JProgressBar(0, 100);
+        progressBar.setVisible(false);
+
+        // 设置快捷键
+        setupKeyboardShortcuts();
+
+        // 创建按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        buttonPanel.add(startButton);
+        buttonPanel.add(clearButton);
+
+        // 创建状态面板
+        JPanel statusPanel = new JPanel(new BorderLayout(5, 5));
+        statusPanel.add(statusLabel, BorderLayout.CENTER);
+        statusPanel.add(progressBar, BorderLayout.SOUTH);
+
+        // 添加组件到窗口
+        add(scrollPane, BorderLayout.CENTER);
+        add(buttonPanel, BorderLayout.NORTH);
+        add(statusPanel, BorderLayout.SOUTH);
+
+        // 添加事件监听器
+        startButton.addActionListener(e -> startSimulation());
+        clearButton.addActionListener(e -> textArea.setText(""));
+    }
+
+    private void setupKeyboardShortcuts() {
+        // Ctrl+Enter 开始模拟
+        textArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK), "startSimulation");
+        textArea.getActionMap().put("startSimulation", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                startSimulation();
+            }
+        });
+
+        // Esc 取消操作
+        textArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancelSimulation");
+        textArea.getActionMap().put("cancelSimulation", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                isRunning = false;
+                statusLabel.setText("操作已取消");
+                progressBar.setVisible(false);
+                startButton.setEnabled(true);
+            }
+        });
+    }
+
+    private void startSimulation() {
+        if (isRunning) return;
+        
+        String text = textArea.getText().trim();
+        if (text.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "请输入要模拟的文本内容", "输入为空", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        isRunning = true;
+        startButton.setEnabled(false);
+        progressBar.setVisible(true);
+        progressBar.setValue(0);
+
+        // 使用新线程执行模拟操作
+        new Thread(() -> {
+            try {
+                // 倒计时提示
+                for (int i = 5; i > 0 && isRunning; i--) {
+                    updateStatus("将在 " + i + " 秒后开始 - 请切换到目标窗口...", 0);
+                    Thread.sleep(1000);
+                }
+
+                if (!isRunning) return;
+
+                // 使用剪贴板粘贴方式输入文本
+                pasteTextUsingClipboard(text);
+                
+                updateStatus("输入完成!", 100);
+                Thread.sleep(1000);
+                
+            } catch (InterruptedException | AWTException e) {
+                e.printStackTrace();
+            } finally {
+                SwingUtilities.invokeLater(() -> {
+                    isRunning = false;
+                    startButton.setEnabled(true);
+                    progressBar.setVisible(false);
+                    statusLabel.setText("就绪 - 输入文本后点击开始按钮");
+                });
+            }
+        }).start();
+    }
+
+    private void pasteTextUsingClipboard(String text) throws AWTException {
+        Robot robot = new Robot();
+        // 逐字符输入文本
+        for (char c : text.toCharArray()) {
+            typeChar(robot, c);
+            try {
+                Thread.sleep(20); // 可根据需要调整每个字符的间隔
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    // 模拟单个字符的键入
+    private void typeChar(Robot robot, char c) {
+        try {
+            boolean upperCase = Character.isUpperCase(c);
+            int keyCode = KeyEvent.getExtendedKeyCodeForChar(c);
+            if (keyCode == KeyEvent.VK_UNDEFINED) {
+                return;
+            }
+            if (upperCase || isSpecialShiftChar(c)) {
+                robot.keyPress(KeyEvent.VK_SHIFT);
+            }
+            robot.keyPress(keyCode);
+            robot.keyRelease(keyCode);
+            if (upperCase || isSpecialShiftChar(c)) {
+                robot.keyRelease(KeyEvent.VK_SHIFT);
+            }
+        } catch (IllegalArgumentException e) {
+            // 跳过无法识别的字符
+        }
+    }
+
+    // 判断是否为需要 shift 的特殊字符
+    private boolean isSpecialShiftChar(char c) {
+        String special = "~!@#$%^&*()_+{}|:\\\\\\\\\\\"<>?"; // 需要 shift 的符号
+        return special.indexOf(c) >= 0;
+    }
+
+    private int getPasteShortcutKey() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        if (osName.contains("mac")) {
+            return KeyEvent.VK_META;
+        } else {
+            return KeyEvent.VK_CONTROL;
+        }
+    }
+
+    private void updateStatus(String message, int progress) {
+        SwingUtilities.invokeLater(() -> {
+            statusLabel.setText(message);
+            progressBar.setValue(progress);
+        });
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            KeyboardSimulator simulator = new KeyboardSimulator();
+            simulator.setVisible(true);
+        });
+    }
+}
