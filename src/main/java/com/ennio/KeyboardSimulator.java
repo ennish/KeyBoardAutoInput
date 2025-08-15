@@ -9,6 +9,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 
 public class KeyboardSimulator extends JFrame {
 
@@ -17,6 +18,8 @@ public class KeyboardSimulator extends JFrame {
     private final JButton clearButton;
     private final JLabel statusLabel;
     private final JProgressBar progressBar;
+    private ImageIcon appIcon;
+
     private boolean isRunning = false;
 
     public KeyboardSimulator() {
@@ -26,7 +29,8 @@ public class KeyboardSimulator extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setLocationRelativeTo(null);
-
+        // 加载应用图标
+        loadAppIcon();
         // 创建组件
         textArea = new JTextArea(10, 40);
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
@@ -59,6 +63,31 @@ public class KeyboardSimulator extends JFrame {
         // 添加事件监听器
         startButton.addActionListener(e -> startSimulation());
         clearButton.addActionListener(e -> textArea.setText(""));
+    }
+    private ImageIcon createDefaultIcon() {
+        // 创建一个简单的默认图标
+        Image image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        Graphics g2d = image.getGraphics();
+        g2d.setColor(new Color(70, 130, 180));
+        g2d.fillRect(0, 0, 64, 64);
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        g2d.drawString("K", 20, 45);
+        g2d.dispose();
+        return new ImageIcon(image);
+    }
+
+    private void loadAppIcon() {
+        try {
+            // 从resources目录加载图标
+            appIcon = new ImageIcon(KeyboardSimulator.class.getClassLoader().getResource("keyboard_icon.ico"));
+            setIconImage(appIcon.getImage());
+        } catch (Exception e) {
+            System.out.println("图标加载失败，使用默认图标: " + e.getMessage());
+            // 创建默认图标
+            appIcon = createDefaultIcon();
+            setIconImage(appIcon.getImage());
+        }
     }
 
     private void setupKeyboardShortcuts() {
