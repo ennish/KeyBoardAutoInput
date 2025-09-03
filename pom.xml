@@ -18,6 +18,22 @@
 
     <name>KBTool</name>
     <description>Knowledge Base Tool for managing and querying knowledge bases</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.10.0</version>
+        </dependency>
+    </dependencies>
+
+    <repositories>
+        <repository>
+            <id>189</id>
+            <name>189Pinheng Repository</name>
+            <url>http://mvn.189pinheng.cn/repository/maven-public/</url>
+        </repository>
+    </repositories>
     <build>
         <plugins>
             <plugin>

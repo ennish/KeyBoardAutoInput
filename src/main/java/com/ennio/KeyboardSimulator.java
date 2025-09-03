@@ -2,14 +2,11 @@ package com.ennio;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.Transferable;
 import java.awt.event.InputEvent;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 public class KeyboardSimulator extends JFrame {
 
@@ -19,10 +16,11 @@ public class KeyboardSimulator extends JFrame {
     private final JLabel statusLabel;
     private final JProgressBar progressBar;
     private ImageIcon appIcon;
+    private AsciiKeyTyper asciiKeyTyper = new AsciiKeyTyper();
 
     private boolean isRunning = false;
 
-    public KeyboardSimulator() {
+    public KeyboardSimulator() throws AWTException {
         // 设置窗口属性
         setTitle("键盘模拟输入工具");
         setSize(600, 400);
@@ -144,7 +142,7 @@ public class KeyboardSimulator extends JFrame {
                 updateStatus("输入完成!", 100);
                 Thread.sleep(1000);
                 
-            } catch (InterruptedException | AWTException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             } finally {
                 SwingUtilities.invokeLater(() -> {
@@ -162,32 +160,30 @@ public class KeyboardSimulator extends JFrame {
         // 逐字符输入文本
         for (char c : text.toCharArray()) {
             typeChar(robot, c);
-            try {
-                Thread.sleep(20); // 可根据需要调整每个字符的间隔
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+            robot.delay(10);
         }
     }
 
     // 模拟单个字符的键入
-    private void typeChar(Robot robot, char c) {
+    private synchronized void typeChar(Robot robot, char c) {
+        boolean upperCase = Character.isUpperCase(c);
+        System.out.println("Is Upper case ? " + upperCase);
+
+        KeyStroke ks = KeyStroke.getKeyStroke('k', 0);
+        System.out.println(ks.getKeyCode());
+
         try {
-            boolean upperCase = Character.isUpperCase(c);
-            int keyCode = KeyEvent.getExtendedKeyCodeForChar(c);
+            int keyCode = ks.getKeyCode();
             if (keyCode == KeyEvent.VK_UNDEFINED) {
                 return;
             }
-            if (upperCase || isSpecialShiftChar(c)) {
-                robot.keyPress(KeyEvent.VK_SHIFT);
-            }
-            robot.keyPress(keyCode);
-            robot.keyRelease(keyCode);
-            if (upperCase || isSpecialShiftChar(c)) {
-                robot.keyRelease(KeyEvent.VK_SHIFT);
-            }
+            System.out.println("keyCode : " + keyCode);
+
+            asciiKeyTyper.typeKey(c);
+
         } catch (IllegalArgumentException e) {
             // 跳过无法识别的字符
+            e.printStackTrace();
         }
     }
 
@@ -213,9 +209,15 @@ public class KeyboardSimulator extends JFrame {
         });
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        KeyboardLayoutManager.setKeyboardLayout("00000409");
         SwingUtilities.invokeLater(() -> {
-            KeyboardSimulator simulator = new KeyboardSimulator();
+            KeyboardSimulator simulator = null;
+            try {
+                simulator = new KeyboardSimulator();
+            } catch (AWTException e) {
+                throw new RuntimeException(e);
+            }
             simulator.setVisible(true);
         });
     }
